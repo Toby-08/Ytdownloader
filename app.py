@@ -51,6 +51,7 @@ def download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_pa
 @app.route('/download', methods=['POST'])
 def download():
     try:
+        # Use form data, not JSON
         video_url = request.form.get("video_url")
         video_quality = request.form.get("video_quality", "bestvideo")
         cookie_mode = request.form.get("cookie_mode", "none")
@@ -65,6 +66,7 @@ def download():
             cookie_file_path = os.path.join(COOKIE_DIR, cookie_filename)
             file.save(cookie_file_path)
 
+        # Call download function
         file_path = download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path)
         filename = os.path.basename(file_path)
 
@@ -72,6 +74,7 @@ def download():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)
