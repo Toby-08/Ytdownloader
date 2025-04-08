@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>YouTube Downloader</title>
+  </head>
+  <body>
+    <h1>Download YouTube Video</h1>
+    <input id="url" placeholder="Enter YouTube URL">
+    <select id="quality">
+      <option value="bestvideo">Best Video</option>
+      <option value="136">720p</option>
+      <option value="137">1080p</option>
+      <option value="bestaudio">Audio Only</option>
+    </select>
+    <button onclick="download()">Download</button>
+
+    <script>
+      async function download() {
+        const url = document.getElementById("url").value;
+        const quality = document.getElementById("quality").value;
+
+        const res = await fetch("https://ytdownloader-n540.onrender.com/download", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ video_url: url, video_quality: quality }),
+        });
+
+        const blob = await res.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "video.mp4";
+        link.click();
+      }
+    </script>
+  </body>
+</html>
