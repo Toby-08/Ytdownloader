@@ -8,43 +8,34 @@ app = Flask(__name__)
 CORS(app)
 
 TEMP_DIR = "downloads"
-COOKIES_DIR = "cookies"
+COOKIE_DIR = "cookies"
 
-if not os.path.exists(TEMP_DIR):
-    os.makedirs(TEMP_DIR)
-if not os.path.exists(COOKIES_DIR):
-    os.makedirs(COOKIES_DIR)
+# Ensure temp directories exist
+os.makedirs(TEMP_DIR, exist_ok=True)
+os.makedirs(COOKIE_DIR, exist_ok=True)
 
-def download_youtube_video(video_url, video_quality, cookie_mode="none", cookies_file_path=None):
-    """
-    Downloads a YouTube video/audio using yt-dlp and returns the file path.
-    """
+def download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path=None):
     unique_id = str(uuid.uuid4())
     output_template = os.path.join(TEMP_DIR, f"{unique_id}.%(ext)s")
 
     ydl_opts = {
+        'format': f'{video_quality}+bestaudio/best' if video_quality != "bestaudio" else 'bestaudio/best',
         'outtmpl': output_template,
         'continuedl': True,
     }
 
     if video_quality == "bestaudio":
-        ydl_opts.update({
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }]
-        })
+        ydl_opts['postprocessors'] = [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }]
     else:
-        ydl_opts.update({
-            'format': f'{video_quality}+bestaudio/best',
-            'merge_output_format': 'mp4',
-        })
+        ydl_opts['merge_output_format'] = 'mp4'
 
-    # Handle cookies
-    if cookie_mode == "upload" and cookies_file_path:
-        ydl_opts['cookiefile'] = cookies_file_path
+    # Add cookies based on selected mode
+    if cookie_mode == "upload" and cookie_file_path:
+        ydl_opts['cookiefile'] = cookie_file_path
     elif cookie_mode == "browser":
         ydl_opts['cookiesfrombrowser'] = ('chrome',)
 
@@ -52,15 +43,10 @@ def download_youtube_video(video_url, video_quality, cookie_mode="none", cookies
         info = ydl.extract_info(video_url, download=True)
         downloaded_filename = ydl.prepare_filename(info)
 
-        # Adjust filename if audio was downloaded
         if video_quality == "bestaudio":
             downloaded_filename = os.path.splitext(downloaded_filename)[0] + ".mp3"
 
     return downloaded_filename
-
-@app.route('/', methods=['GET'])
-def home():
-    return jsonify({"message": "YouTube Downloader API"}), 200
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -72,16 +58,14 @@ def download():
         if not video_url:
             return jsonify({"error": "Missing video_url"}), 400
 
-        cookies_file_path = None
+        cookie_file_path = None
+        if cookie_mode == "upload" and "cookies_file" in request.files:
+            file = request.files["cookies_file"]
+            cookie_filename = str(uuid.uuid4()) + "_cookies.txt"
+            cookie_file_path = os.path.join(COOKIE_DIR, cookie_filename)
+            file.save(cookie_file_path)
 
-        if cookie_mode == "upload" and 'cookies_file' in request.files:
-            uploaded_file = request.files['cookies_file']
-            if uploaded_file.filename:
-                filename = str(uuid.uuid4()) + ".txt"
-                cookies_file_path = os.path.join(COOKIES_DIR, filename)
-                uploaded_file.save(cookies_file_path)
-
-        file_path = download_youtube_video(video_url, video_quality, cookie_mode, cookies_file_path)
+        file_path = download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path)
         filename = os.path.basename(file_path)
 
         return send_file(file_path, as_attachment=True, download_name=filename)
