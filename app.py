@@ -29,6 +29,7 @@ def download_youtube_video(video_url, video_quality):
                 'preferredquality': '192',
             }],
             'continuedl': True,
+            'cookiefile': 'cookies.txt'
         }
     else:
         ydl_opts = {
@@ -36,6 +37,7 @@ def download_youtube_video(video_url, video_quality):
             'outtmpl': output_template,
             'merge_output_format': 'mp4',
             'continuedl': True,
+            'cookiefile': 'cookies.txt'
         }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
