@@ -1,4 +1,8 @@
 flask
 yt-dlp
 gunicorn
+<<<<<<< HEAD
 flask-cors
+=======
+flask-cors
+>>>>>>> e299f0de1d974b4efbd16899af25022f88f3c3cd
