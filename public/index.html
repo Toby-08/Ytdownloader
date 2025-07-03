@@ -179,7 +179,7 @@
         formData.append("cookies_file", cookiesFile);
       }
 
-      const res = await fetch("/download", {
+      const res = await fetch("https://ytdownloader-n540.onrender.com/download", {
         method: "POST",
         body: formData
       });
