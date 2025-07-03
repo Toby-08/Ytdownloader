@@ -101,11 +101,11 @@
     <div class="input-group mb-3">
       <span class="input-group-text">🔗</span>
       <input id="url" name="video_url" class="form-control" placeholder="Enter YouTube URL">
-
     </div>
 
     <!-- Quality selection -->
     <div class="mb-3">
+      <label for="quality" class="form-label text-start w-100">Quality <span style="font-size:1.2em;">&#9660;</span></label>
       <select id="quality" class="form-select">
         <option value="bestvideo">Best Video</option>
         <option value="136">720p</option>
@@ -116,6 +116,7 @@
 
     <!-- Cookie mode selection -->
     <div class="mb-3">
+      <label for="cookie_mode" class="form-label text-start w-100">Authentication <span style="font-size:1.2em;">&#9660;</span></label>
       <select id="cookie_mode" class="form-select">
         <option value="none">No Authentication</option>
         <option value="upload">Upload cookies.txt</option>
@@ -127,6 +128,12 @@
     <div class="mb-3" id="cookies_upload_div" style="display: none;">
       <label for="cookies_file" class="form-label">Upload cookies.txt</label>
       <input type="file" class="form-control" id="cookies_file" accept=".txt">
+    </div>
+
+    <!-- Playlist start index -->
+    <div class="mb-3">
+      <label for="start_index" class="form-label">Playlist Start Index (optional)</label>
+      <input type="number" min="1" class="form-control" id="start_index" placeholder="e.g. 1">
     </div>
 
     <!-- Download button -->
@@ -152,6 +159,7 @@
     const quality = document.getElementById("quality").value;
     const cookieMode = document.getElementById("cookie_mode").value;
     const cookiesFile = document.getElementById("cookies_file").files[0];
+    const startIndex = document.getElementById("start_index").value;
     const status = document.getElementById("status");
 
     if (!url) {
@@ -166,12 +174,12 @@
       formData.append("video_url", url);
       formData.append("video_quality", quality);
       formData.append("cookie_mode", cookieMode);
-
+      if (startIndex) formData.append("start_index", startIndex);
       if (cookieMode === "upload" && cookiesFile) {
         formData.append("cookies_file", cookiesFile);
       }
 
-      const res = await fetch("https://ytdownloader-n540.onrender.com/download", {
+      const res = await fetch("/download", {
         method: "POST",
         body: formData
       });
@@ -181,10 +189,17 @@
         throw new Error(error.error || "Download failed.");
       }
 
+      // Get filename from Content-Disposition header
+      let filename = "download";
+      const disposition = res.headers.get("Content-Disposition");
+      if (disposition && disposition.indexOf("filename=") !== -1) {
+        filename = disposition.split("filename=")[1].replace(/"/g, "");
+      }
+
       const blob = await res.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "video.mp4";
+      link.download = filename;
       link.click();
 
       status.innerText = "✅ Download started!";

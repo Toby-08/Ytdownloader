@@ -3,6 +3,8 @@ from flask_cors import CORS
 import yt_dlp
 import os
 import uuid
+import zipfile
+import shutil
 
 app = Flask(__name__)
 CORS(app)
@@ -14,14 +16,15 @@ COOKIE_DIR = "cookies"
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(COOKIE_DIR, exist_ok=True)
 
-def download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path=None):
+def download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path=None, start_index=None):
     unique_id = str(uuid.uuid4())
-    output_template = os.path.join(TEMP_DIR, f"{unique_id}.%(ext)s")
+    output_template = os.path.join(TEMP_DIR, f"{unique_id}-%(playlist_index)02d-%(title)s.%(ext)s")
 
     ydl_opts = {
         'format': f'{video_quality}+bestaudio/best' if video_quality != "bestaudio" else 'bestaudio/best',
         'outtmpl': output_template,
         'continuedl': True,
+        'noplaylist': False,  # Allow playlist downloads
     }
 
     if video_quality == "bestaudio":
@@ -33,20 +36,36 @@ def download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_pa
     else:
         ydl_opts['merge_output_format'] = 'mp4'
 
+    if start_index is not None:
+        ydl_opts['playliststart'] = start_index
+
     # Add cookies based on selected mode
     if cookie_mode == "upload" and cookie_file_path:
         ydl_opts['cookiefile'] = cookie_file_path
     elif cookie_mode == "browser":
         ydl_opts['cookiesfrombrowser'] = ('chrome',)
 
+    downloaded_files = []
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
-        downloaded_filename = ydl.prepare_filename(info)
+        # Handle playlist or single video
+        if 'entries' in info:
+            # Playlist
+            for entry in info['entries']:
+                if entry:
+                    filename = ydl.prepare_filename(entry)
+                    if video_quality == "bestaudio":
+                        filename = os.path.splitext(filename)[0] + ".mp3"
+                    downloaded_files.append(filename)
+        else:
+            # Single video
+            filename = ydl.prepare_filename(info)
+            if video_quality == "bestaudio":
+                filename = os.path.splitext(filename)[0] + ".mp3"
+            downloaded_files.append(filename)
 
-        if video_quality == "bestaudio":
-            downloaded_filename = os.path.splitext(downloaded_filename)[0] + ".mp3"
-
-    return downloaded_filename
+    return downloaded_files
 
 @app.route('/download', methods=['POST'])
 def download():
@@ -55,6 +74,8 @@ def download():
         video_url = request.form.get("video_url")
         video_quality = request.form.get("video_quality", "bestvideo")
         cookie_mode = request.form.get("cookie_mode", "none")
+        start_index = request.form.get("start_index")
+        start_index = int(start_index) if start_index and start_index.isdigit() else None
 
         if not video_url:
             return jsonify({"error": "Missing video_url"}), 400
@@ -66,11 +87,21 @@ def download():
             cookie_file_path = os.path.join(COOKIE_DIR, cookie_filename)
             file.save(cookie_file_path)
 
-        # Call download function
-        file_path = download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path)
-        filename = os.path.basename(file_path)
+        # Download video(s)
+        files = download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_path, start_index)
 
-        return send_file(file_path, as_attachment=True, download_name=filename)
+        # If multiple files, zip them
+        if len(files) > 1:
+            zip_name = os.path.join(TEMP_DIR, f"{uuid.uuid4()}_playlist.zip")
+            with zipfile.ZipFile(zip_name, 'w') as zipf:
+                for f in files:
+                    zipf.write(f, os.path.basename(f))
+            # Optionally, clean up individual files after zipping
+            for f in files:
+                os.remove(f)
+            return send_file(zip_name, as_attachment=True, download_name=os.path.basename(zip_name))
+
+        return send_file(files[0], as_attachment=True, download_name=os.path.basename(files[0]))
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
