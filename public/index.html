@@ -185,9 +185,11 @@
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Download failed.");
+        const errorText = await res.text();  // 👈 read raw HTML response
+        console.error("Backend returned:", errorText);
+        throw new Error("Download failed. See console for details.");
       }
+
 
       // Get filename from Content-Disposition header
       let filename = "download";
