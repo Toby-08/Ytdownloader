@@ -7,7 +7,8 @@ import zipfile
 import shutil
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 
 TEMP_DIR = "downloads"
 COOKIE_DIR = "cookies"
