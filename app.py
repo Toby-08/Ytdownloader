@@ -27,15 +27,6 @@ def download_youtube_video(video_url, video_quality, cookie_mode, cookie_file_pa
         'noplaylist': False,  # Allow playlist downloads
     }
 
-    if video_quality == "bestaudio":
-        ydl_opts['postprocessors'] = [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }]
-    else:
-        ydl_opts['merge_output_format'] = 'mp4'
-
     if start_index is not None:
         ydl_opts['playliststart'] = start_index
 
