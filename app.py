@@ -7,8 +7,7 @@ import zipfile
 import shutil
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
-
+CORS(app)
 
 TEMP_DIR = "downloads"
 COOKIE_DIR = "cookies"
@@ -105,6 +104,8 @@ def download():
         return send_file(files[0], as_attachment=True, download_name=os.path.basename(files[0]))
 
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 @app.route('/health', methods=['GET'])
@@ -114,7 +115,6 @@ def health_check():
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({"message": "YouTube Downloader Backend Running"}), 200
-
 
 if __name__ == "__main__":
     import os
