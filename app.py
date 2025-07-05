@@ -110,6 +110,12 @@ def download():
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "ok"}), 200
+
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"message": "YouTube Downloader Backend Running"}), 200
+
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
